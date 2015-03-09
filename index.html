@@ -8,157 +8,222 @@ html, body {
   padding: 0;
   margin: 0;
   background: #222;
+  font-family: monospace;
 }
 
 body {
   text-align: center;
 }
 
-.main_input {
+.centered {
   position: absolute;
-  top: 50%;
+  top: 40%;
   left: 50%;
   width: 80%;
   max-width: 400px;
   transform: translate(-50%, -50%);
+}
+
+.time {
+  color: white;
+  font-family: monospace;
+  font-size: 30px;
+  margin-bottom: 10px;
+}
+
+.main_input {
+  width: 100%;
   background: #222;
   color: white;
   padding: 3px;
   border: 1px solid #444;
 }
 
-</style>
+.hidden {
+  display: none;
+}
 
+.result {
+  width: 100%;
+  background: #333;
+  color: white;
+  padding: 3px;
+  border: 1px solid #333;
+  text-align: left;
+}
+
+.result img {
+  margin-right: 3px;
+}
+
+</style>
+<script src='./storage.js'></script>
 <script>
 
-function getSettings() {
-  // Get the settingJSON from localStorage
-  var settingJSON = '';
-  if (localStorage) {
-    settingJSON = localStorage.getItem('settings');
+var jsonp = (function (document) {
+  var requests = 0,
+  callbacks = {};
+
+  return {
+    /**
+     * makes a JSONP request
+     *
+     * @param {String} src
+     * @param {Object} data
+     * @param {Function} callback
+     */
+    get: function (src, data, callback) {
+      // check if data was passed
+      if (!arguments[2]) {
+      callback = arguments[1];
+      data = {};
+    }
+
+    // determine if there already are params
+    src += (src.indexOf('?')+1 ? '&' : '?');
+
+    var head = document.getElementsByTagName('head')[0],
+        script = document.createElement('script'),
+        params = [],
+        requestId = requests,
+        param;
+    // increment the requests
+    requests++;
+
+    // create external callback name
+    data.callback = 'jsonp.callbacks.request_' + requestId;
+    // set callback function
+    callbacks['request_' + requestId] = function (data) {
+      // clean up
+      head.removeChild(script);
+      delete callbacks['request_' + requestId];
+
+      // fire callback
+      callback(data);
+    };
+    // traverse data
+    for (param in data) {
+      params.push(param + '=' + encodeURIComponent(data[param]));
+    }
+
+    // generate params
+    src += params.join('&');
+
+    // set script attributes
+    script.type = 'text/javascript';
+    script.src = src;
+
+    // add to the DOM
+    head.appendChild(script);
+    },
+
+      /**
+       * keeps a public reference of the callbacks object
+       */
+    callbacks: callbacks
+  };
+})(document);
+
+var results = (function(document){
+  var resultsDiv = null;
+  window.addEventListener('load', function() {
+    resultsDiv = document.querySelector('.results');
+  });
+  return {
+    add: function(result) {
+      resultsDiv.appendChild(result);
+    },
+    clear: function() {
+      while (resultsDiv.hasChildNodes()) {
+        resultsDiv.removeChild(resultsDiv.lastChild);
+      }
+    },
+    show: function() {
+      resultsDiv.classList.toggle('hidden');
+    },
+    hide: function() {
+      resultsDiv.classList.toggle('hidden');
+    }
   }
+})(document);
 
-  if (!settingJSON) {
-    settingJSON = '{}';
-  }
-
-  // Get the javascript script object
-  return JSON.parse(settingJSON);
+function createResultDiv(result) {
+  console.log(result);
+  var res = document.createElement('div');
+  res.className = 'result';
+  var icon = document.createElement('img');
+  icon.src = result.Icon.URL;
+  var text = document.createTextNode(result.FirstURL);
+  res.addEventListener('click', function() {
+    document.location.href = result.FirstURL;
+  });
+  res.appendChild(icon);
+  res.appendChild(text);
+  return res;
 }
 
-function saveSettings(settings) {
-  // Turn the settings object into a string
-  var settingsJSON = JSON.stringify(settings);
-
-  // Store the string in localStorage
-  if (localStorage) {
-    localStorage.setItem('settings', settingsJSON);
-  }
-}
-
-function saveSetting(key, value) {
-  var settings = getSettings();
-  settings[key] = value;
-  saveSettings(settings);
-}
-
-function getSetting(key) {
-  var settings = getSettings();
-  return settings[key];
-}
-
-function removeSetting(key) {
-  var settings = getSettings();
-  delete settings[key];
-  saveSettings(settings);
-}
-
-function loadSettings() {
-  var settings = getSettings();
-  for (setting in settings) {
-    switch (setting) {
-      case 'test':
-        alert('Testing worked with value: ' + settings[setting]);
+var processKey = {
+  lastCallback: null,
+  callback: function(e) {
+    switch (e.keyCode) {
+      case 38: // Up
+        break;
+      case 40: // Down
         break;
       default:
+        if (processKey.lastCallback) {
+          clearTimeout(processKey.lastCallback);
+        }
+        processKey.lastCallback = setTimeout(function(){
+          var query = e.target.value;
+          if (query == '') {
+            results.clear();
+            return;
+          }
+          var queryURL = 'http://api.duckduckgo.com/?q=' + encodeURIComponent(query) + '&format=json';
+          jsonp.get(queryURL, function(data) {
+            results.clear();
+            if (data && data.Results) {
+              processKey.lastCallback = new Date();
+              if (data.Results[0]) {
+                results.add(createResultDiv(data.Results[0]));
+              }
+            }
+          });
+        }, 200);
         break;
     }
   }
 }
 
-function localStorageShim() {
-  if (!window.localStorage) {
-    Object.defineProperty(window, "localStorage", new (function () {
-      var aKeys = [], oStorage = {};
-      Object.defineProperty(oStorage, "getItem", {
-        value: function (sKey) { return sKey ? this[sKey] : null; },
-        writable: false,
-        configurable: false,
-        enumerable: false
-      });
-      Object.defineProperty(oStorage, "key", {
-        value: function (nKeyId) { return aKeys[nKeyId]; },
-        writable: false,
-        configurable: false,
-        enumerable: false
-      });
-      Object.defineProperty(oStorage, "setItem", {
-        value: function (sKey, sValue) {
-          if(!sKey) { return; }
-          document.cookie = escape(sKey) + "=" + escape(sValue) + "; expires=Tue, 19 Jan 2038 03:14:07 GMT; path=/";
-        },
-        writable: false,
-        configurable: false,
-        enumerable: false
-      });
-      Object.defineProperty(oStorage, "length", {
-        get: function () { return aKeys.length; },
-        configurable: false,
-        enumerable: false
-      });
-      Object.defineProperty(oStorage, "removeItem", {
-        value: function (sKey) {
-          if(!sKey) { return; }
-          document.cookie = escape(sKey) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
-        },
-        writable: false,
-        configurable: false,
-        enumerable: false
-      });
-      this.get = function () {
-        var iThisIndx;
-        for (var sKey in oStorage) {
-          iThisIndx = aKeys.indexOf(sKey);
-          if (iThisIndx === -1) { oStorage.setItem(sKey, oStorage[sKey]); }
-          else { aKeys.splice(iThisIndx, 1); }
-          delete oStorage[sKey];
-        }
-        for (aKeys; aKeys.length > 0; aKeys.splice(0, 1)) { oStorage.removeItem(aKeys[0]); }
-        for (var aCouple, iKey, nIdx = 0, aCouples = document.cookie.split(/\s*;\s*/); nIdx < aCouples.length; nIdx++) {
-          aCouple = aCouples[nIdx].split(/\s*=\s*/);
-          if (aCouple.length > 1) {
-            oStorage[iKey = unescape(aCouple[0])] = unescape(aCouple[1]);
-            aKeys.push(iKey);
-          }
-        }
-        return oStorage;
-      };
-      this.configurable = false;
-      this.enumerable = true;
-    })());
-  }
-}
-
 window.addEventListener('load', function() {
-  document.querySelector('.main_input').focus();
+
+  /* Get settings. */
   localStorageShim();
   loadSettings();
+
+  /* Set up input. */
+  var input = document.querySelector('.main_input');
+  input.addEventListener('keyup', processKey.callback);
+  input.focus();
+
+  /* Show the time. */
+  var time = document.querySelector('.time');
+  time.innerHTML = (new Date()).toLocaleTimeString();
+  setInterval(function() {
+    time.innerHTML = (new Date()).toLocaleTimeString();
+  }, 1000);
+
 });
 
 </script>
 
 </head>
 <body>
+<div class='centered'>
+<div class='time'></div>
 <input class='main_input'></input>
+<div class='results'></div>
+</div>
 </body>
 </html>
