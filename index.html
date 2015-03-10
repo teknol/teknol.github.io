@@ -46,10 +46,14 @@ body {
 .result {
   width: 100%;
   background: #333;
-  color: white;
+  color: grey;
   padding: 3px;
   border: 1px solid #333;
   text-align: left;
+}
+
+.highlighted {
+  color: white;
 }
 
 .result img {
@@ -129,6 +133,7 @@ var results = (function(document){
   window.addEventListener('load', function() {
     resultsDiv = document.querySelector('.results');
   });
+  var index = 0;
   return {
     add: function(result) {
       resultsDiv.appendChild(result);
@@ -137,19 +142,40 @@ var results = (function(document){
       while (resultsDiv.hasChildNodes()) {
         resultsDiv.removeChild(resultsDiv.lastChild);
       }
+      index = 0;
     },
-    show: function() {
-      resultsDiv.classList.toggle('hidden');
+    redraw: function() {
+      var i = resultsDiv.children.length;
+      while (i--) {
+        var child = resultsDiv.children[i];
+        child.classList.remove('highlighted');
+        if (index == i) {
+          child.classList.add('highlighted');
+        }
+      }
     },
-    hide: function() {
-      resultsDiv.classList.toggle('hidden');
+    down: function() {
+      if (index + 1 < resultsDiv.children.length) {
+        index++;
+      }
+      results.redraw();
+    },
+    up: function() {
+      if (index > 0) {
+        index--;
+      }
+      results.redraw();
+    },
+    select: function() {
+      var child = resultsDiv.children[index];
+      document.location.href = child.dataset.url;
     }
   }
 })(document);
 
 function createResultDiv(result) {
-  console.log(result);
   var res = document.createElement('div');
+  res.setAttribute('data-url', result.FirstURL);
   res.className = 'result';
   var icon = document.createElement('img');
   icon.src = result.Icon.URL;
@@ -167,8 +193,13 @@ var processKey = {
   callback: function(e) {
     switch (e.keyCode) {
       case 38: // Up
+        results.up();
         break;
       case 40: // Down
+        results.down();
+        break;
+      case 13:
+        results.select();
         break;
       default:
         if (processKey.lastCallback) {
@@ -187,6 +218,7 @@ var processKey = {
               processKey.lastCallback = new Date();
               if (data.Results[0]) {
                 results.add(createResultDiv(data.Results[0]));
+                results.down();
               }
             }
           });
