@@ -17,11 +17,11 @@ body {
 
 .centered {
   position: absolute;
-  top: 40%;
+  top: 30%;
   left: 50%;
   width: 80%;
-  max-width: 400px;
-  transform: translate(-50%, -50%);
+  max-width: 800px;
+  transform: translate(-50%, 0%);
 }
 
 .time {
@@ -57,7 +57,7 @@ body {
 }
 
 </style>
-<script src='./storage.js'></script>
+<script src='js/storage.js'></script>
 <script>
 
 var jsonp = (function (document) {
@@ -175,6 +175,7 @@ var processKey = {
           clearTimeout(processKey.lastCallback);
         }
         processKey.lastCallback = setTimeout(function(){
+          results.add(createResultDiv({Icon:{URL:''},FirstURL:'test'}));
           var query = e.target.value;
           if (query == '') {
             results.clear();
