@@ -175,7 +175,6 @@ var processKey = {
           clearTimeout(processKey.lastCallback);
         }
         processKey.lastCallback = setTimeout(function(){
-          results.add(createResultDiv({Icon:{URL:''},FirstURL:'test'}));
           var query = e.target.value;
           if (query == '') {
             results.clear();
