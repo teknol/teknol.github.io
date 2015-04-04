@@ -199,6 +199,7 @@ var processKey = {
         results.down();
         break;
       case 13:
+        window.location.href = 'https://www.google.com/?q=' + encodeURIComponent(e.target.value);
         results.select();
         break;
       default:
